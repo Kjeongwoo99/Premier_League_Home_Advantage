@@ -97,4 +97,84 @@ hometeam_stats %>% gt() %>%
 
 @tbl-home is a summary table for home teams in the English Premier League in 2023-24. It lists the teams along with their performance metrics for matches played at home, sorted by Goals Scored then Shots on Target in descending order. We can see that Liverpool has the highest Winning Rate with 76.47%, with Arsenal and Tottenham both 75%, Man City 70.59% and Aston Villa 68.75%, indicating the top 5 teams in terms of a strong home performance. As of 15 April, the top five teams in the league are Man City, Arsenal, Liverpool, Aston Villa, and Tottenham in that order. This table shows a strong correlation between home winning rate and the league position. In terms of Goals Scored, the top five teams are Liverpool, Newcastle, Man City, Aston Villa, and Arsenal. In the league, they are ranked 3rd, 6th, 1st, 4th, and 2nd respectively, which shows a strong correlation between winning rate and goals scored. Liverpool, being top of the list also has the most shots on target with 8.71 per match, followed by Newcastle at 6.41 and Man City at 6.18. We can find a similar pattern down the bottom of the list. The bottom five teams are Crystal Palace, Bournemouth, Everton, Sheffield United, and Burnley that are ranked 14th, 13th, 16th, 20th, and 19th in the league table as of 32 match days. They have all scored less than 1.5 goals with less than 5.20 shots on target per home game. The bottom two teams (Sheffield United and Burnley) show very similar statistics with 12.5% and 11.76% winning rate, 1.06 and 1.00 goals scored and 3.44 and 3.82 shots on target per home game. These are by far the lowest among the teams and they are ranked 20th and 19th in the league respectively. From this table, we can find out that there seems to be a tendency that teams with a higher number of shots on target or goals scored to have a higher winning rate, suggesting a positive correlation between offensive play quality and winning outcomes. 
 
+```{r}
+#| label: tbl-away
+#| tbl-cap: Premier League Away Team Match Data 
+#| echo: false
+#| warning: false
+#| message: false
 
+# create away team statistics dataset 
+awayteam_stats <- analysis_data |>
+  group_by(`Away Team`) |>
+  summarise(Games_Played = n(),
+            Wins = sum(`Away Win`),
+            Win_Rate = Wins / Games_Played,
+            Goals_Scored = mean(`Full Time Away Team Goals`), 
+            Shots_on_Target = mean(`Away Team Shots on Target`)) |>
+  arrange(desc(Goals_Scored), desc(Shots_on_Target)) 
+
+# away team statistics dataset into a table 
+awayteam_stats %>%
+  gt() %>%
+  tab_header(
+    title = "Away Team Statistics",
+    subtitle = "Summary of games played, wins, and shooting performance") %>%
+  cols_label(
+    Games_Played = "Games Played",
+    Wins = "Wins",
+    Win_Rate = "Winning Rate (%)",
+    Goals_Scored = "Goals Scored",
+    Shots_on_Target = "Shots on Target") %>%
+  fmt_percent(
+    columns = vars(Win_Rate),
+    decimals = 2) %>%
+  fmt_number(
+    columns = vars(Goals_Scored, Shots_on_Target),
+    decimals = 2)
+```
+
+@tbl-away is a summary table for away teams. What seems significant by first glance is the winning rate. The highest away winning rate is by Man City with 66.67%; this is about 10% lower than the highest home winning rate by Liverpool, suggesting that there is a general trend that away teams face greater challenge in winning. Similarly, Sheffield United at the bottom of the table with the lowest winning rate with 6.25%, compared the @tbl-home's lowest winning rate of 11.76% by Burnley further strengthens this view that teams perform better at a home game in general. Top teams like Arsenal and Liverpool show a significant decrease in their winning rate at away games with 62.5% and 53.33% winning rate, which is around 13% and 23% lower than their home winning rate respectively. Similarly, the number of goals scored are also reduced for teams at an away game with Man City by 0.31, Tottenham by 0.18, Liverpool by 0.6, Newcastle by 0.8 and Aston Villa by 0.85. Most teams score less in away matches, which is intuitive because if you score fewer goals, you are less likely to win a match in football. Like @tbl-home, we can also identify a similar positive correlation between the winning rate and goals scored, and the winning rate and shots on target. 
+
+```{r}
+#| label: fig-homeaway
+#| fig-cap: "Comparison of Home and Away Win Rates for Each Team"
+#| echo: false
+#| message: false
+#| warning: false
+
+# change the names of home/away team datasets to merge 
+awayteam_stats <- awayteam_stats %>% rename(Team = `Away Team`)
+hometeam_stats <- hometeam_stats %>% rename(Team = `Home Team`)
+combined_team_stats <- full_join(hometeam_stats, awayteam_stats, by = "Team")
+
+# plot 
+ggplot(combined_team_stats, aes(x = Team)) +
+  geom_segment(aes(xend = Team, y = Win_Rate.x, yend = Win_Rate.y, color = "Rate Difference"), 
+               linewidth = 1) +
+  geom_point(aes(y = Win_Rate.x, color = "Home"), size = 1.5) +
+  geom_point(aes(y = Win_Rate.y, color = "Away"), size = 1.5) +
+  scale_color_manual(values = c("Rate Difference" = "black", "Home" = "blue", "Away" = "red")) +
+  labs(title = "Comparison of Home and Away Winning Rates for Each Team",
+       x = "Team", y = "Winning Rate") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5), legend.position = "bottom")
+```
+@fig-homeaway below is a paired column chart that links the home (blue) and away (red) winning rates for each team with a line, making it easier to see the differences between the two for each team. Each team has two colored circles: blue represents the home winning rate, and red represents the away winning rate. The black line connecting the circles indicates the distance between the home and away winning rates for each team. The length of the black lines between the red and blue dots for each team shows the variability between home and away performance. A longer line suggests a greater disparity between home and away winning rates. 
+
+A common pattern is that the blue dots (home winning rate) are generally higher than the red dots (away winning rate), indicating a typical home advantage where teams tend to win more often when playing at their home venue. The only teams that play better at away games are Burnley, Everton, West Ham but with minimal differences. Except these 3 teams, the rest of 17 teams, which is 85% of the league play better at home. Teams with both high home and away winning rates could be considered strong overall. We can observe this trend in Arsenal and Man City where both have a winning probability higher than 60% at both home and away matches. On the other hand, teams with a significant gap in the winning rate when playing away might be more reliant on home advantage. Fulham is a typical example of this. Its winning rate is around 55% at home but it drops significantly to just less than 20% at an away game. Similarly, Tottenham plays much better at home with 65% winning rate but less than 40% at an away game. In general, the winning rates for both home and away games appear to range from approximately 20% to 60%, with home winning rates generally being higher.
+
+# Model {#sec-model}
+
+In this study, we aim to predict the winning rates based on variables: home advantage, goals scored and shots on target. This is because our data shows a strong correlation between the winning rate and home games, the winning rate and goals scored and the winning rate and shots on target. We saw earlier the linear relationships between the winning rate and goals scored and the winning rate and shots on target from @tbl-home and @tbl-away. We also saw a consistent gap between the winning rate between home game and away game from @fig-homeaway. Therefore, we are trying to understand how home game, an increase in goals scored and an increase in shots on target affect the winning rate for the football teams in the Premier League. To achieve this, we will run a multiple linear regression model with the dependent variable: the winning rate and the independent variables: proportion of home games, average goals scored and average shots on target. 
+
+The multiple linear regression takes the form of:
+
+\begin{equation}
+y_{i} = \beta_{0} + \beta_{1}x_{home} + \beta_{2}x_{goal} + \beta_{3}x_{shot}
+\label{eq:linear}
+\end{equation}
+
+In equation \ref{eq:linear}, each $\beta$ represents the coefficients of the model. $\beta_0$ measures our dependent variable: the winning rate, representing the baseline winning rate when all other predictors are zero. The coefficients $\beta_1$, $\beta_2$ and $\beta_3$ indicate the chance of winning by an additional increase in each variable; in this case, proportion of home games, scoring one more goal, and shot on target by one respectively. 
+
+The limitations of our model lie in the complex nature of football itself. It is a complex game with many influencing factors like player's skills, team cohesion, fitness levels, mentality, tactical strategies: formation, in-game adjustments, pitch conditions, injuries and even weather. This model with three variables may be an oversimplification of complex real world situation. However, this model can still provide some insights in some ways. By highlighting the impact of goals scored and shots on target, it directly gives attention to attacking abilities to win games. This is not only useful for teams to focus on developing their attacking strategies, but it can also develop the modern football tactically and attract more viewers and crowds since scoring goals are the essence of watching football. Moreover, by quantifying the impact of playing at home, teams can adjust their training, match preparations and line-up accordingly.  
