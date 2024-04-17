@@ -178,3 +178,125 @@ y_{i} = \beta_{0} + \beta_{1}x_{home} + \beta_{2}x_{goal} + \beta_{3}x_{shot}
 In equation \ref{eq:linear}, each $\beta$ represents the coefficients of the model. $\beta_0$ measures our dependent variable: the winning rate, representing the baseline winning rate when all other predictors are zero. The coefficients $\beta_1$, $\beta_2$ and $\beta_3$ indicate the chance of winning by an additional increase in each variable; in this case, proportion of home games, scoring one more goal, and shot on target by one respectively. 
 
 The limitations of our model lie in the complex nature of football itself. It is a complex game with many influencing factors like player's skills, team cohesion, fitness levels, mentality, tactical strategies: formation, in-game adjustments, pitch conditions, injuries and even weather. This model with three variables may be an oversimplification of complex real world situation. However, this model can still provide some insights in some ways. By highlighting the impact of goals scored and shots on target, it directly gives attention to attacking abilities to win games. This is not only useful for teams to focus on developing their attacking strategies, but it can also develop the modern football tactically and attract more viewers and crowds since scoring goals are the essence of watching football. Moreover, by quantifying the impact of playing at home, teams can adjust their training, match preparations and line-up accordingly.  
+
+# Results {#sec-results}
+
+```{r}
+#| label: tbl-model-coefficients
+#| tbl-cap: Coefficients from the Model
+#| echo: false
+#| message: false
+#| warning: false
+
+# combine the home/away team data into team level data 
+team_level_data <- analysis_data %>%
+  group_by(`Home Team`) %>%
+  summarise(
+    Home_Games_Played = n(),
+    Home_Wins = sum(`Home Win`), 
+    Home_Goals_Scored = sum(`Full Time Home Team Goals`),
+    Home_Shots_on_Target = sum(`Home Team Shots on Target`)
+  ) %>%
+  full_join(analysis_data %>%
+      group_by(`Away Team`) %>%
+      summarise(
+        Away_Games_Played = n(),
+        Away_Wins = sum(`Away Win`),
+        Away_Goals_Scored = sum(`Full Time Away Team Goals`),
+        Away_Shots_on_Target = sum(`Away Team Shots on Target`)
+      ), by = c("Home Team" = "Away Team")
+  ) %>%
+  mutate(
+    Total_Games_Played = Home_Games_Played + Away_Games_Played,
+    Proportion_Home_Games = Home_Games_Played / Total_Games_Played,
+    Win_Rate = (Home_Wins + Away_Wins) / Total_Games_Played,
+    Avg_Goals_Scored = (Home_Goals_Scored + Away_Goals_Scored) / Total_Games_Played,
+    Avg_Shots_on_Target = (Home_Shots_on_Target + Away_Shots_on_Target) / Total_Games_Played
+  ) %>%
+  select(Team = `Home Team`, Win_Rate, Proportion_Home_Games, Avg_Goals_Scored, Avg_Shots_on_Target)
+
+# regression model 
+regression_model <- lm(Win_Rate ~ Proportion_Home_Games + Avg_Goals_Scored + Avg_Shots_on_Target, data = team_level_data)
+
+coefficients <- broom.mixed::tidy(regression_model, conf.int = TRUE) 
+
+kable(coefficients, format = "latex", booktabs = TRUE, align = "c") %>% kable_styling(latex_options = "scale_down", font_size = 7)
+```
+@tbl-model-coefficients shows the estimates of the coefficients of our multiple linear regression that aims to understand the influence of home games, average goals scored, and average shots on target on the winning rate in Premier League football.
+
+The intercept (0.2360462) represents the predicted winning rate when all other variables are at zero. This is the baseline winning rate for a team without taking into account home games, goals scored, or shots on target. In reality, the variables cannot be zero but this value can be understood as the baseline winning rate before considering the effects of other variables in the model. With a high p-value (0.4956470), the intercept is not statistically significant. This means there is no significant prediction for the winning rate based solely on the intercept. 
+
+The variable Proportion_Home_Games (-1.0920396) indicates that on average, a 109.20% drop in the winning rate is expected when the team has one more home game than away game in the season. This outcome is counter-intuitive given the well-documented phenomenon of home advantage where teams are expected to perform better at home. A negative coefficient implies that, among all teams considered for this model, having more home games led to lower winning rate. This shows that this variable could have been constructed unfairly. However, the coefficient on proportion of home game of the regression line from @tbl-model-coefficients suggests otherwise. This contrast shows the mishandling of the dataset. This increase in proportion of more home games perhaps does not fully capture the home vs away variable. Instead of merging the home and away game into one, creating a binary variable with 1 = home game, 0 = away game and then incorporating this into the linear model to see the effect of home game could have captured the situation better. In addition, the high p-value (.1371363) suggests that this is not statistically significant. 
+
+The variable Avg_Goals_Scored (0.2918261) means that the winning rate increases by 29.18 percentage points for each additional goal scored. This is intuitive because scoring more goals directly increases the chances of winning matches given the lower scoring nature of football. In reality, this finding underscores the importance of a strong offense and the ability to score goals as critical to a team's success in the league. The low p-value (0.0005106) indicates that it is highly statistically significant.
+
+Lastly, Avg_Shots_on_Target (0.0461157) suggests that the winning rate increases by 4.61 percentage points with an additional increase in the average shot on target per game. While the effect is much smaller than for average goals scored, it suggests that having more shots on target, which are more likely to result in goals, can also contribute to increasing the winning rate. This, again, reinforces the importance of attacking forces in football. 
+
+```{r}
+#| label: fig-goal
+#| fig-cap: "Goals Scored and The Winning Rate Relationship"
+#| echo: false
+#| message: false
+
+team_level_data_goals <- team_level_data |>
+  arrange(desc(Avg_Goals_Scored)) %>%
+  mutate(Rank = min_rank((-Avg_Goals_Scored)))
+  
+num_teams <- nrow(team_level_data_goals)
+
+# Generate a color gradient from dark to light color based on team ranking
+colors <- colorRampPalette(c("darkviolet", "violet", "navy", "darkblue", "blue", "lightblue", "forestgreen", "green", "palegreen", "firebrick", "red", "tomato", "orange", "yellow", "khaki", "cornsilk"))(num_teams)
+names(colors) <- team_level_data$`Team`
+
+# Plot with colors assigned to teams
+ggplot(team_level_data_goals, aes(x = Avg_Goals_Scored, y = Win_Rate, color = `Team`)) + 
+  geom_point(size = 2.5) +
+  scale_color_manual(values = setNames(colors, team_level_data_goals$`Team`)) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  
+  labs(title = "The Relationship Between Goals Scored and The Win Rate",
+       x = "The Average Goals Scored", y = "The Winning Rate") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "right",
+        legend.text = element_text(size = 4),
+        legend.key.size = unit(0.3, 'cm'), 
+        legend.margin = margin(1, 1, 1, 1))  
+```
+
+@fig-goal is a scatter plot with a regression line, illustrating how the average goals scored by teams relate to their winning rates. Each team is represented by a colored dot on the graph on the rainbow color scale. The color gradient starts with yellow for the team with the lowest average goals scored and gradually darkens to violet for the team with the highest average goals scored. The color legend on the right allows readers to identify which color corresponds to which team. 
+
+There is a positive trend shown by the regression line that suggests that as the average number of goals scored by a team increases, their winning rate tends to increase as well. This is consistent with the general understanding that scoring more often leads to winning more matches. The x-axis (the average goals scored) shows that most teams score between 1.2 and 2.4 goals per game on average, with only 6 teams scoring more than 2 goals. They are the top teams in the league, competing for the title and the Champions League ticket. The y-axis, representing the winning rate as a percentage, varies from slightly above 20% to just below 60% for the majority. As teams score more goals, their winning rates increase accordingly. It shows that only the top teams like Liverpool, Arsenal and Man City record a winning rate of more than 60%, which shows how competitive the league is. The scatter of points around the regression line shows the variance in the data. Teams such as Everton and Man United that are above the line have a higher winning rate than predicted by their average goals scored, while those below the line such as Newcastle and Luton have a lower winning rate. 
+
+```{r}
+#| label: fig-shot
+#| fig-cap: "Shots on target and The Winning Rate Relationship"
+#| echo: false
+#| message: false
+
+team_level_data_shots <- team_level_data %>%
+  arrange(desc(Avg_Shots_on_Target)) %>%
+  mutate(Rank = min_rank((-Avg_Shots_on_Target)))
+  
+num_teams <- nrow(team_level_data_goals)
+
+colors <- colorRampPalette(c("darkviolet", "violet", "navy", "darkblue", "blue", "lightblue", "forestgreen", "green", "palegreen", "firebrick", "red", "tomato", "orange", "yellow", "khaki", "cornsilk"))(num_teams)
+names(colors) <- team_level_data_goals$`Team`
+
+# Plot with colors assigned to teams
+ggplot(team_level_data_goals, aes(x = Avg_Shots_on_Target, y = Win_Rate, color = `Team`)) +
+  geom_point(size = 2.5) +
+  scale_color_manual(values = setNames(colors, team_level_data_goals$`Team`)) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  
+  labs(title = "The Relationship Between Shots on Target and The Win Rate",
+       x = "The Average Shots on Target", y = "The Winning Rate") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1),
+        legend.title = element_blank(), 
+        legend.position = "right",
+        legend.text = element_text(size = 4),
+        legend.key.size = unit(0.3, 'cm'), 
+        legend.margin = margin(1, 1, 1, 1))  
+```
+
+@fig-shot is another scatter plot that shows how the average number of shots on target by teams relates to their winning rates. Like the previous graph, this one also shows a positive correlation, as indicated by the upward slope of the regression line. This suggests that teams with more shots on target tend to have a higher winning rate, implying a beneficial impact of shooting accuracy and/or frequency on game outcomes. The data points are somewhat scattered around the regression line, indicating a reasonable fit of the model. From the plot, we can see that teams take about 3 to 7 shots on target on average, with top teams close to 7 shots on target and challengers close to 3 shots on target. This wide range suggests a more significant difference in attacking abilities, strategies, or execution between teams. Teams, such as 'Man City' and 'Liverpool', represented by dark and light purple dots, are at the higher end for both shots on target and winning rates, suggesting a strong attacking performance.
