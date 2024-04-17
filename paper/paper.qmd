@@ -1,13 +1,12 @@
 ---
-title: "My title"
-subtitle: "My subtitle if needed"
+title: "The Impact of Home Advantage, Goals Scored, Shots on Target on Primier League Outcomes"
+subtitle: "How do home advantage, goals scored and shots on target increase the winning rate for the premier league teams"
 author: 
-  - First author
-  - Another author
-thanks: "Code and data are available at: LINK."
+  - Jeongwoo Kim
+thanks: "Code and data are available at: https://github.com/Kjeongwoo99/Premier_League_Home_Advantage"
 date: today
 date-format: long
-abstract: "First sentence. Second sentence. Third sentence. Fourth sentence."
+abstract: "This study investigates the impacts of home advantage, goals scored, and shots on target on the wining rate of Premier League Football teams. Through multiple linear regression analysis using current season data, we found that home advantage, goals scored and shots on target signicantly increase winning rates. These findings highlight the strategies for football teams to focus on winning by applying more offensive tactics at home game. This paper further contributes to a deeper understanding of the effects of home advantage and the essence of offensive quality in modern football."
 format: pdf
 number-sections: true
 bibliography: references.bib
@@ -18,204 +17,84 @@ bibliography: references.bib
 #| warning: false
 #| message: false
 
+# load libraries 
 library(tidyverse)
-library(palmerpenguins)
-```
+library(here)
+library(rstanarm)
+library(modelsummary)
+library(knitr)
+library(dplyr)
+library(tibble)
+library(scales)
+library(gt)
+library(kableExtra)
+library(ggplot2)
 
+analysis_data <- read_csv(file = here("data/analysis_data/analysis_data.csv"), show_col_types = FALSE)
+```
 
 # Introduction
 
-You can and should cross-reference sections and sub-sections. We use @citeR and @rohan.
+Football is arguably one of the most loved sports around the world and the English Premier League is one of the most popular professional football leagues. Professional footballers and managers in this league earn substantial popularity, fame and money. Given the low scoring nature of football, the moments when a player scores goals are the climaxex of the event. Fans enjoy watching football matches and often go and cheer for their team especially in their home game to give them support. In the competitive arena of the English Premier League, understanding the variables that affect team success is important. This study aims to investigate how home advantage, goals scored, and shots on target correlate with winning rates. These factors, though analyzed individually in past research are often not integrated into a unified model. This paper fills this gap by employing the most recent dataset from the ongoing 2023/24 Premier League season, reflecting the most recent trends in football. 
 
-The remainder of this paper is structured as follows. @sec-data....
+Home advantage refers to the tendency where sports teams generally achieve better results at their own stadiums compared to playing away. This concept is widely recognized across various team sports, including football [@Goumas]. It occurs worldwide, regardless of the level of the game, and about 60% of points are gained at home at the elite football level [@Goumas]. Factors such as home crowd's support on player's performance and referee's decision-making, adverse effects of travelling, jet lag and fatigue, and psychologically defensive reaction to protect territory have been identified to contribute to home advantage [@Goumas]. However, the extent to which home advantage influences football game remains ambiguous, especially in the context of goal scored and shot accuracy. This study uses multiple linear regression model to explore these relationships, providing quantifiable insights into how each factor contributes to the winning rates. 
 
+Our analysis reaffirms home advantage and highlights the importance of strategic offensive play evidenced by positive correlation between goals scored, shots on target and winning rates. Interestingly, our model has indicated a non-significant or even negative relationship between the proportion of home games and winning rates suggesting that the more number of home games do not guarantee higher winning rates. This suggests other underlying factors could play in home advantage.
 
+These insights are crucial for board directors, managers, coaches, scouts and players who want to develop their team and improve team performance in one of the world's most watched football leagues. By understanding the specific contributions of these factors to winning, teams can manage and adjust their training, match preparation, and tactical decisions more effectively. Moreover, this study contributes to the broader field of team sports by highlighting the importance of offensive plays. 
+
+The remainder of the paper is structured to first detail the data and cleaning process used in our analysis in @sec-data. This is followed by an in-depth analysis of the specifics of the variables, and what we consider important in our data. @sec-model introduces the specifics of the multiple linear regression model. We then present the findings of the data in @sec-results and discussion of the implications of our findings in @sec-discussion, confirming existing theories in sports performance analysis and conclude with recommendations for future research. 
+
+## Estimand 
+
+The estimand of this study is the expected change in the winning rates by the three key variables: home advantage, the average goals scored, and the average shots on target.
 
 # Data {#sec-data}
 
-Some of our data is of penguins (@fig-bills), from @palmerpenguins.
+The data used in this study is the Premier League match results data from https://www.football-data.co.uk/. It contains Full Time/Half Time results and match statistics of different football leagues and divisions around the world. I have chosen the current season (2023/24) of the Premier League Division to reflect the most recent data applicable for this analysis because sports, especially football is fast-changing in terms of individual performances and tactics (n=323). For instance, it has been almost 15 years since the tiki-taka style of Barcelona with Lionel Messi, Andrés Iniesta, Xavier Hernández and Sergio Busquets under Pep Guardiola shocked the world and changed the paradigm of modern football. Just five years later, the tiki-taka era came to an end when the Spanish were eliminated after a shocking defeat against the Netherlands in the group stage in the 2014 Brazil World Cup. As such, in modern football, trend is changing rapidly. What dominates the world football right now may become old and tired in a couple of years later. Using the current season's data of the best league in the world can prevent this issue. 
+
+This dataset contains match results of all the Premier League matches in the ongoing season 2023-24. This includes variables such as Date (Match Date (dd/mm/yy)), Time (Time of kick off), HomeTeam (Home Team), AwayTeam (Away Team), FTHG (Full Time Home Team Goals), FTAG (Full Time Away Team Goals), FTR (Full Time Result (H=Home Win, D=Draw, A=Away Win)), HTHG (Half Time Home Team Goals), HTAG (Half Time Away Team Goals), HTR (Half Time Result (H=Home Win, D=Draw, A=Away Win)), Attendance (Crowd Attendance), Referee (Match Referee), HS (Home Team Shots), AS (Away Team Shots), HST (Home Team Shots on Target), AST (Away Team Shots on Target) and many others. This dataset was chosen because it provided the most complete data of home team, away team of every single match and the team's performance metrics. 
+
+This study focuses on the relationship between the winning rate and home advantage, goals scored, and shots on target for the Premier League Teams. Of these variables, what are considered important are `Home Team`, `Away Team`, `Full Time Home Team Goals`, `Full Time Away Team Goals`, `Full Time Result`, `Home Team Shots on Target` , and `Away Team Shots on Target`. `Home Team` and `Away Team` are categorical variables that identifies each home/away team. `Full Time Home Team Goals` and `Full Time Away Team Goals` are the average number of goals scored by the home/away team per game, which indicates the offensive strength of the team at home/away. `Home Team Shots on Target` and `Away Team Shots on Target` are the average number of shots on target per game by home/away team. This metric is an indicator of both the team's offensive quality and the accuracy of their attempts at goal. In professional football (soccer), around 10% of all shots taken result in a goal, and a mere 1% of all attacking plays lead to scoring [@Anzer]. Therefore, an increase in the number of shots on target taken by a team increases the scoring opportunity greatly due to the low scoring nature of football. I have also created a new column `Home Win` being 1 when Home Team won and being 0 if home team drew or lost. A similar column `Away Win` is also made that equals 1 if away team won and 0 if away team drew or lost. 
+
+Data was collected and analyzed using R statistical programming software [@citeR], with additional packages like tidyverse [@tidyverse], knitr [@citeKnitr], dplyr [@dplyr] here [@here], kableExtra [@citekableExtra], modelsummary [@modelsummary], tibble [@tibble], scales [@scales], gt [@gt], and ggplot2 [@ggplot2]. 
 
 ```{r}
-#| label: fig-bills
-#| fig-cap: Bills of penguins
-#| echo: false
-
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = "none") +
-  theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
-  coord_flip()
-```
-
-Talk more about it.
-
-And also planes (@fig-planes). (You can change the height and width, but don't worry about doing that until you have finished every other aspect of the paper - Quarto will try to make it look nice and the defaults usually work well once you have enough text.)
-
-```{r}
-#| label: fig-planes
-#| fig-cap: Relationship between wing length and width
+#| label: tbl-home
+#| tbl-cap: Premier League Home Team Match Data 
 #| echo: false
 #| warning: false
 #| message: false
 
-analysis_data <- read_csv(here::here("data/analysis_data/analysis_data.csv"))
+# create home team statistics dataset 
+hometeam_stats <- analysis_data |>
+  group_by(`Home Team`) |>
+  summarise(Games_Played = n(),
+            Wins = sum(`Home Win`),
+            Win_Rate = Wins / Games_Played,
+            Goals_Scored = mean(`Full Time Home Team Goals`), 
+            Shots_on_Target = mean(`Home Team Shots on Target`)) |>
+  arrange(desc(Goals_Scored), desc(Shots_on_Target)) 
 
-analysis_data |> 
-  ggplot(aes(x = width, y = length)) +
-  geom_point(alpha = 0.8) +
-  theme_minimal() +
-  labs(x = "Wing width (mm)",
-       y = "Wing length (mm)")
+# home team statistics data into a table 
+hometeam_stats %>% gt() %>%
+  tab_header(
+    title = "Home Team Statistics",
+    subtitle = "Summary of games played, wins, and shooting performance") %>%
+  cols_label(
+    Games_Played = "Games Played",
+    Wins = "Wins",
+    Win_Rate = "Winning rate (%)",
+    Goals_Scored = "Goals Scored",
+    Shots_on_Target = "Shots on Target") %>%
+  fmt_percent(
+    columns = vars(Win_Rate),
+    decimals = 2) %>%
+  fmt_number(
+    columns = vars(Goals_Scored, Shots_on_Target),
+    decimals = 2)
 ```
 
-Talk way more about it. 
-
-
-
-# Model
-
-The goal of our modelling strategy is twofold. Firstly,...
-
-Here we briefly describe the Bayesian analysis model used to investigate... Background details and diagnostics are included in [Appendix -@sec-model-details].
-
-## Model set-up
-
-Define $y_i$ as the number of seconds that the plane remained aloft. Then $\beta_i$ is the wing width and $\gamma_i$ is the wing length, both measured in millimeters.  
-
-\begin{align} 
-y_i|\mu_i, \sigma &\sim \mbox{Normal}(\mu_i, \sigma) \\
-\mu_i &= \alpha + \beta_i + \gamma_i\\
-\alpha &\sim \mbox{Normal}(0, 2.5) \\
-\beta &\sim \mbox{Normal}(0, 2.5) \\
-\gamma &\sim \mbox{Normal}(0, 2.5) \\
-\sigma &\sim \mbox{Exponential}(1)
-\end{align}
-
-We run the model in R [@citeR] using the `rstanarm` package of @rstanarm. We use the default priors from `rstanarm`.
-
-
-### Model justification
-
-We expect a positive relationship between the size of the wings and time spent aloft. In particular...
-
-We can use maths by including latex between dollar signs, for instance $\theta$.
-
-
-# Results
-
-Our results are summarized in @tbl-modelresults.
-
-```{r}
-#| echo: false
-#| eval: true
-#| warning: false
-#| message: false
-
-library(rstanarm)
-
-first_model <-
-  readRDS(file = here::here("models/first_model.rds"))
-```
-
-```{r}
-#| echo: false
-#| eval: true
-#| label: tbl-modelresults
-#| tbl-cap: "Explanatory models of flight time based on wing width and wing length"
-#| warning: false
-
-modelsummary::modelsummary(
-  list(
-    "First model" = first_model
-  ),
-  statistic = "mad",
-  fmt = 2
-)
-```
-
-
-
-
-# Discussion
-
-## First discussion point {#sec-first-point}
-
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this. 
-
-## Second discussion point
-
-## Third discussion point
-
-## Weaknesses and next steps
-
-Weaknesses and next steps should also be included.
-
-\newpage
-
-\appendix
-
-# Appendix {-}
-
-
-# Additional data details
-
-# Model details {#sec-model-details}
-
-## Posterior predictive check
-
-In @fig-ppcheckandposteriorvsprior-1 we implement a posterior predictive check. This shows...
-
-In @fig-ppcheckandposteriorvsprior-2 we compare the posterior with the prior. This shows... 
-
-```{r}
-#| eval: true
-#| echo: false
-#| message: false
-#| warning: false
-#| label: fig-ppcheckandposteriorvsprior
-#| layout-ncol: 2
-#| fig-cap: "Examining how the model fits, and is affected by, the data"
-#| fig-subcap: ["Posterior prediction check", "Comparing the posterior with the prior"]
-
-pp_check(first_model) +
-  theme_classic() +
-  theme(legend.position = "bottom")
-
-posterior_vs_prior(first_model) +
-  theme_minimal() +
-  scale_color_brewer(palette = "Set1") +
-  theme(legend.position = "bottom") +
-  coord_flip()
-```
-
-## Diagnostics
-
-@fig-stanareyouokay-1 is a trace plot. It shows... This suggests...
-
-@fig-stanareyouokay-2 is a Rhat plot. It shows... This suggests...
-
-```{r}
-#| echo: false
-#| eval: true
-#| message: false
-#| warning: false
-#| label: fig-stanareyouokay
-#| fig-cap: "Checking the convergence of the MCMC algorithm"
-#| fig-subcap: ["Trace plot", "Rhat plot"]
-#| layout-ncol: 2
-
-plot(first_model, "trace")
-
-plot(first_model, "rhat")
-```
-
-
-
-\newpage
-
-
-# References
+@tbl-home is a summary table for home teams in the English Premier League in 2023-24. It lists the teams along with their performance metrics for matches played at home, sorted by Goals Scored then Shots on Target in descending order. We can see that Liverpool has the highest Winning Rate with 76.47%, with Arsenal and Tottenham both 75%, Man City 70.59% and Aston Villa 68.75%, indicating the top 5 teams in terms of a strong home performance. As of 15 April, the top five teams in the league are Man City, Arsenal, Liverpool, Aston Villa, and Tottenham in that order. This table shows a strong correlation between home winning rate and the league position. In terms of Goals Scored, the top five teams are Liverpool, Newcastle, Man City, Aston Villa, and Arsenal. In the league, they are ranked 3rd, 6th, 1st, 4th, and 2nd respectively, which shows a strong correlation between winning rate and goals scored. Liverpool, being top of the list also has the most shots on target with 8.71 per match, followed by Newcastle at 6.41 and Man City at 6.18. We can find a similar pattern down the bottom of the list. The bottom five teams are Crystal Palace, Bournemouth, Everton, Sheffield United, and Burnley that are ranked 14th, 13th, 16th, 20th, and 19th in the league table as of 32 match days. They have all scored less than 1.5 goals with less than 5.20 shots on target per home game. The bottom two teams (Sheffield United and Burnley) show very similar statistics with 12.5% and 11.76% winning rate, 1.06 and 1.00 goals scored and 3.44 and 3.82 shots on target per home game. These are by far the lowest among the teams and they are ranked 20th and 19th in the league respectively. From this table, we can find out that there seems to be a tendency that teams with a higher number of shots on target or goals scored to have a higher winning rate, suggesting a positive correlation between offensive play quality and winning outcomes. 
 
 
