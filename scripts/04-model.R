@@ -10,8 +10,6 @@ regression_model <- lm(Win_Rate ~ Proportion_Home_Games + Avg_Goals_Scored + Avg
 
 #### Save model ####
 saveRDS(
-  model,
+  regression_model,
   file = "models/model.rds"
 )
-
-
