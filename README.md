@@ -3,6 +3,8 @@
 
 This repo contains the data, code, and analysis of the relationships between win rates and home advantage, goals scored and shots on target in football by analyzing the English Premier League 2023/24 season.
 
+You can replicate the research by visiting the football data website: https://www.football-data.co.uk/, clicking 'England' under the 'ODDS & RESULTS: MAIN LEAUGE' section on the right hand side of the page, then downloading the Premier League excel data just below 'Season 2023/2024'. Another way is to simply copy and paste this url: https://www.football-data.co.uk/mmz4281/2324/E0.csv into your browser. 
+
 
 ## File Structure
 
